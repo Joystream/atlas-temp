@@ -147,7 +147,7 @@ export const VideoTileBase: React.FC<VideoTileBaseProps> = ({
   onDeleteVideoClick,
   isPullupDisabled,
 }) => {
-  const { openContextMenu, contextMenuOpts } = useContextMenu()
+  const { openContextMenu, isVisible, targetRef } = useContextMenu()
   const [tileSize, setTileSize] = useState<TileSize>(undefined)
 
   const { ref: imgRef } = useResizeObserver<HTMLImageElement>({
@@ -344,14 +344,15 @@ export const VideoTileBase: React.FC<VideoTileBaseProps> = ({
           </CSSTransition>
         </SwitchTransition>
         <KebabMenuButtonIcon
-          onClick={(event) => openContextMenu(event, 200)}
+          ref={targetRef}
+          onClick={openContextMenu}
           variant="tertiary"
           size="small"
-          isActive={contextMenuOpts.isActive}
+          isActive={isVisible}
         >
           <SvgGlyphMore />
         </KebabMenuButtonIcon>
-        <ContextMenu contextMenuOpts={contextMenuOpts}>
+        <ContextMenu isVisible={isVisible} targetRef={targetRef} placement={'bottom-end'}>
           {publisherMode ? (
             <>
               {onOpenInTabClick && (
