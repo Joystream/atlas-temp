@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { CSSTransition, SwitchTransition } from 'react-transition-group'
 import useResizeObserver from 'use-resize-observer'
 
-import { useContextMenu } from '@/hooks/useContextMenu'
+import { usePopover } from '@/hooks/usePopover'
 import {
   SvgGlyphClose,
   SvgGlyphCopy,
@@ -147,7 +147,7 @@ export const VideoTileBase: React.FC<VideoTileBaseProps> = ({
   onDeleteVideoClick,
   isPullupDisabled,
 }) => {
-  const { openContextMenu, isVisible, targetRef } = useContextMenu()
+  const { openPopover, isVisible, targetRef, popperRef } = usePopover()
   const [tileSize, setTileSize] = useState<TileSize>(undefined)
 
   const { ref: imgRef } = useResizeObserver<HTMLImageElement>({
@@ -343,16 +343,10 @@ export const VideoTileBase: React.FC<VideoTileBaseProps> = ({
             </TextContainer>
           </CSSTransition>
         </SwitchTransition>
-        <KebabMenuButtonIcon
-          ref={targetRef}
-          onClick={openContextMenu}
-          variant="tertiary"
-          size="small"
-          isActive={isVisible}
-        >
+        <KebabMenuButtonIcon ref={targetRef} onClick={openPopover} variant="tertiary" size="small" isActive={isVisible}>
           <SvgGlyphMore />
         </KebabMenuButtonIcon>
-        <ContextMenu isVisible={isVisible} targetRef={targetRef} placement={'bottom-end'}>
+        <ContextMenu isVisible={isVisible} targetRef={targetRef} placement={'bottom-end'} popperRef={popperRef}>
           {publisherMode ? (
             <>
               {onOpenInTabClick && (

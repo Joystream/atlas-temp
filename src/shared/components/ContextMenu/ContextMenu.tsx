@@ -3,7 +3,7 @@ import { CSSTransition } from 'react-transition-group'
 
 import { StyledContainer, StyledMenuItem, StyledText } from './ContextMenu.style'
 
-import { PopoverBase, PopoverBaseProps } from '../PopoverBase/PopoverBase'
+import { PopoverBase, PopoverBaseProps } from '../Popover/PopoverBase'
 
 type MenuItemProps = {
   icon: ReactNode
