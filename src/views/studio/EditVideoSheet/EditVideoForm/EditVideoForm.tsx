@@ -1,7 +1,7 @@
 import { formatISO, isValid } from 'date-fns'
 import { debounce } from 'lodash-es'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Controller, DeepMap, FieldError, FieldNamesMarkedBoolean, useForm } from 'react-hook-form'
+import { Controller, DeepMap, FieldNamesMarkedBoolean, useForm } from 'react-hook-form'
 import useMeasure from 'react-use-measure'
 
 import { useCategories } from '@/api/hooks'
@@ -244,37 +244,27 @@ export const EditVideoForm: React.FC<EditVideoFormProps> = ({
     setValue,
   ])
 
-  const handleSubmit = createSubmitHandler(
-    async (data: EditVideoFormFields) => {
-      // do initial validation
-      if (!isEdit && !data.assets.video.contentId) {
-        setFileSelectError('Video file cannot be empty')
-        return
-      }
-      if (!data.assets.thumbnail.cropContentId) {
-        setFileSelectError('Thumbnail cannot be empty')
-        return
-      }
-
-      const callback = () => {
-        if (!isEdit) {
-          setForceReset(true)
-        }
-      }
-
-      debouncedDraftSave.current.flush()
-
-      await onSubmit(data, dirtyFields, callback)
-    },
-    (errors) => {
-      const error = Object.values(errors)[0] as FieldError
-      const ref = error.ref as HTMLElement
-      ref.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      })
+  const handleSubmit = createSubmitHandler(async (data: EditVideoFormFields) => {
+    // do initial validation
+    if (!isEdit && !data.assets.video.contentId) {
+      setFileSelectError('Video file cannot be empty')
+      return
     }
-  )
+    if (!data.assets.thumbnail.cropContentId) {
+      setFileSelectError('Thumbnail cannot be empty')
+      return
+    }
+
+    const callback = () => {
+      if (!isEdit) {
+        setForceReset(true)
+      }
+    }
+
+    debouncedDraftSave.current.flush()
+
+    await onSubmit(data, dirtyFields, callback)
+  })
 
   useEffect(() => {
     const subscription = watch((data) => {
@@ -453,7 +443,7 @@ export const EditVideoForm: React.FC<EditVideoFormProps> = ({
                 rules={requiredValidation('Video category')}
                 render={({ field: { value, onChange, ref } }) => (
                   <Select
-                    containerRef={ref}
+                    ref={ref}
                     value={value}
                     items={categoriesSelectItems}
                     onChange={onChange}
@@ -532,7 +522,7 @@ export const EditVideoForm: React.FC<EditVideoFormProps> = ({
                   rules={requiredValidation('License')}
                   render={({ field: { value, onChange, ref } }) => (
                     <Select
-                      containerRef={ref}
+                      ref={ref}
                       value={value}
                       items={knownLicensesOptions}
                       placeholder="Choose license type"
