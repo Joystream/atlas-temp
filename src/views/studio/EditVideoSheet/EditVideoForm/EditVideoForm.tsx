@@ -1,4 +1,4 @@
-import { formatISO, isValid } from 'date-fns'
+import { formatISO, isValid as isDateValid } from 'date-fns'
 import { debounce } from 'lodash-es'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Controller, DeepMap, FieldError, FieldNamesMarkedBoolean, useForm } from 'react-hook-form'
@@ -10,6 +10,7 @@ import { ViewErrorFallback } from '@/components/ViewErrorFallback'
 import { languages } from '@/config/languages'
 import knownLicenses from '@/data/knownLicenses.json'
 import { useDeleteVideo } from '@/hooks/useDeleteVideo'
+import { useMediaMatch } from '@/hooks/useMediaMatch'
 import { useAssetStore, useRawAsset } from '@/providers/assets'
 import { useConnectionStatusStore } from '@/providers/connectionStatus'
 import { RawDraft, useDraftStore } from '@/providers/drafts'
@@ -30,12 +31,11 @@ import { RadioButton } from '@/shared/components/RadioButton'
 import { Select, SelectItem } from '@/shared/components/Select'
 import { TextArea } from '@/shared/components/TextArea'
 import { TextField } from '@/shared/components/TextField'
-import { SvgGlyphChevronDown, SvgGlyphChevronUp, SvgGlyphInfo } from '@/shared/icons'
+import { SvgGlyphChevronDown, SvgGlyphChevronUp, SvgPlayerCancel } from '@/shared/icons'
 import { FileType } from '@/types/files'
 import { createId } from '@/utils/createId'
 import { pastDateValidation, requiredValidation, textFieldValidation } from '@/utils/formValidationOptions'
 import { SentryLogger } from '@/utils/logs'
-import { StyledActionBar } from '@/views/studio/EditVideoSheet/EditVideoSheet.style'
 
 import {
   DeleteVideoButton,
@@ -48,6 +48,7 @@ import {
   MoreSettingsSection,
   RadioButtonsContainer,
   RadioCardButtonsContainer,
+  StyledActionBar,
   StyledMultiFileSelect,
   StyledTitleArea,
 } from './EditVideoForm.style'
@@ -88,6 +89,7 @@ export const EditVideoForm: React.FC<EditVideoFormProps> = ({
   const isEdit = !selectedVideoTab?.isDraft
   const [actionBarRef, actionBarBounds] = useMeasure()
   const [moreSettingsVisible, setMoreSettingsVisible] = useState(false)
+  const mdMatch = useMediaMatch('md')
 
   const [forceReset, setForceReset] = useState(false)
   const [fileSelectError, setFileSelectError] = useState<string | null>(null)
@@ -118,9 +120,10 @@ export const EditVideoForm: React.FC<EditVideoFormProps> = ({
     setValue,
     watch,
     reset,
-    formState: { errors, dirtyFields, isDirty },
+    formState: { errors, dirtyFields, isDirty, isValid },
   } = useForm<EditVideoFormFields>({
     shouldFocusError: true,
+    mode: 'onChange',
     defaultValues: {
       assets: {
         video: {
@@ -172,7 +175,7 @@ export const EditVideoForm: React.FC<EditVideoFormProps> = ({
           ...data,
           channelId: activeChannelId,
           type: 'video',
-          publishedBeforeJoystream: isValid(data.publishedBeforeJoystream)
+          publishedBeforeJoystream: isDateValid(data.publishedBeforeJoystream)
             ? formatISO(data.publishedBeforeJoystream as Date)
             : null,
         }
@@ -407,6 +410,11 @@ export const EditVideoForm: React.FC<EditVideoFormProps> = ({
   if (tabDataError || categoriesError) {
     return <ViewErrorFallback />
   }
+  const isFormValid = !!mediaAsset && !!thumbnailAsset && isValid
+
+  const isDisabled =
+    !isDirty || (!isEdit && !mediaAsset) || !thumbnailAsset || !isValid || nodeConnectionStatus !== 'connected'
+
   return (
     <>
       <FormScrolling actionBarHeight={actionBarBounds.height}>
@@ -562,7 +570,7 @@ export const EditVideoForm: React.FC<EditVideoFormProps> = ({
                   <TextArea
                     {...register(
                       'licenseCustomText',
-                      textFieldValidation({ name: 'License', maxLength: 5000, required: true })
+                      textFieldValidation({ name: 'License', maxLength: 5000, required: false })
                     )}
                     maxLength={5000}
                     placeholder="Type your license content here"
@@ -651,34 +659,43 @@ export const EditVideoForm: React.FC<EditVideoFormProps> = ({
       </FormScrolling>
       <StyledActionBar
         ref={actionBarRef}
-        disabled={nodeConnectionStatus !== 'connected'}
-        fullWidth={true}
-        fee={fee}
-        isActive={selectedVideoTab?.isDraft || isDirty}
-        primaryButtonText={isEdit ? 'Publish changes' : 'Upload'}
-        onConfirmClick={handleSubmit}
-        detailsText={isEdit ? undefined : 'Drafts are saved automatically'}
-        tooltipText={
-          isEdit
-            ? undefined
-            : 'Drafts system can only store video metadata. Selected files (video, thumbnail) will not be saved as part of the draft.'
-        }
-        detailsTextIcon={isEdit ? undefined : <SvgGlyphInfo />}
-        secondaryButtonText={isEdit ? 'Cancel' : undefined}
-        onCancelClick={isEdit ? () => reset() : undefined}
-        primaryButtonTooltipText={
-          isEdit
+        isEdit={isEdit}
+        primaryText={`Fee: ${fee} Joy`}
+        secondaryText="For the time being no fees are required for blockchain transactions. This will change in the future."
+        primaryButton={{
+          text: isEdit ? 'Publish changes' : 'Upload',
+          disabled: isDisabled,
+          onClick: handleSubmit,
+          tooltip: isDisabled
             ? {
-                headerText: 'Change anything to proceed',
-                text: 'To publish changes you have to provide new value to any field',
+                headerText: isEdit
+                  ? isFormValid
+                    ? 'Change anything to proceed'
+                    : 'Fill all required fields to proceed'
+                  : 'Fill all required fields to proceed',
+                text: isEdit
+                  ? isFormValid
+                    ? 'To publish changes you have to provide new value to any field'
+                    : 'Required: video file, thumbnail, title, category, language'
+                  : 'Required: video file, thumbnail, title, category, language',
                 icon: true,
               }
-            : {
-                headerText: 'Fill all required fields to proceed',
-                text: 'Required: video file, thumbnail, title, category, language',
-                icon: true,
-              }
-        }
+            : undefined,
+        }}
+        secondaryButton={{
+          visible: isEdit && isDirty && nodeConnectionStatus === 'connected',
+          text: 'Cancel',
+          onClick: () => reset(),
+          icon: <SvgPlayerCancel width={16} height={16} />,
+        }}
+        draftBadge={{
+          visible: !isEdit,
+          text: mdMatch ? 'Drafts are saved automatically' : 'Saving drafts',
+          tooltip: {
+            text: 'Drafts system can only store video metadata. Selected files (video, thumbnail) will not be saved as part of the draft.',
+          },
+        }}
+        fullWidth={true}
       />
     </>
   )
